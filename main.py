@@ -235,7 +235,7 @@ class Board(QWidget):
             i, j = self.sequence.pop()
             self.withdraw_point = (i, j)
             self.table[i][j] = VACANT
-            self.count -= 2
+            self.count -= 1
             self.black = not self.black
             if not self.sequence:
                 self.start = False
