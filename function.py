@@ -25,7 +25,7 @@ def search_space(table, sequence):
         for delta_i in [0, -1, 1, -2, 2]:
             for delta_j in [0, -1, 1, -2, 2]:
                 i1, j1 = i0 + delta_i, j0 + delta_j
-                if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
                     space.append((i1, j1))
     return space
 
@@ -46,7 +46,7 @@ def search(table, sequence):
             for delta_i in [0, -1, 1, -2, 2]:
                 for delta_j in [0, -1, 1, -2, 2]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
                         new_space = [(i1, j1)] + new_space
             score = min_search(table, alpha, beta, depth=1, space=new_space)
             table[i][j] = VACANT
@@ -73,7 +73,7 @@ def max_search(table, alpha, beta, depth, space):
             for delta_i in [0, -1, 1, -2, 2]:
                 for delta_j in [0, -1, 1, -2, 2]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
                         new_space.append((i1, j1))
             score = min_search(table, alpha, beta, depth=depth - 1, space=new_space)
             table[i][j] = VACANT
@@ -99,7 +99,7 @@ def min_search(table, alpha, beta, depth, space):
             for delta_i in [0, -1, 1, -2, 2]:
                 for delta_j in [0, -1, 1, -2, 2]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
                         new_space.append((i1, j1))
             score = max_search(table, alpha, beta, depth=depth - 1, space=new_space)
             if score < min_:
@@ -117,13 +117,15 @@ for color in [BLACK, WHITE]:
     opponent_color = BLACK if color == WHITE else WHITE
     factor = 1 if color == WHITE else -1
     for num in range(1, 5):
-        patterns[str(VACANT) + str(color) + '{' + str(num) + '}' + str(opponent_color)] = factor * num ** 2
-        patterns[str(opponent_color) + str(color) + '{' + str(num) + '}' + str(VACANT)] = factor * num ** 2
-        patterns[str(VACANT) + str(color) + '{' + str(num) + '}' + str(VACANT)] = factor * num ** 2
-    # patterns[str(VACANT) + str(color) + '{' + str(4) + '}' + str(opponent_color)] = factor * 16
-    # patterns[str(opponent_color) + '{' + str(4) + '}' + str(VACANT)] = factor * 16
-    patterns[str(VACANT) + str(color) + '{' + str(4) + '}' + str(VACANT)] = factor * 10000
-    patterns[str(color) + '{' + str(5) + '}'] = factor * 10000
+        patterns[str(VACANT) + str(color) * num + str(opponent_color)] = factor * num ** 2
+        patterns[str(opponent_color) + str(color) * num + str(VACANT)] = factor * num ** 2
+        patterns[str(VACANT) + str(color) * num + str(VACANT)] = factor * num ** 2
+    # patterns[str(VACANT) + str(color) * 4 + str(opponent_color)] = factor * 16
+    # patterns[str(opponent_color) * 4 + str(VACANT)] = factor * 16
+    patterns[str(VACANT) + str(color) * 4 + str(VACANT)] = factor * 10000
+    patterns[str(color) * 5] = factor * 100000
+    patterns[str(VACANT) + str(color) * 5 + str(VACANT)] = factor * 100000
+    # 此行代码只是为了防止人类玩家快要连到5个时电脑懒得管的尴尬局面（可删，不影响胜负）
 
 
 def evaluate(table):
@@ -146,8 +148,7 @@ def evaluate(table):
             strings.append(''.join([str(table[i][k - n + 1 + i]) for i in range(2 * n - k - 1)]))
     for string in strings:
         for pattern in patterns:
-            if re.search(pattern, string):
-                score += patterns[pattern]
+            score += patterns[pattern] * len(re.findall(pattern, string))
     return score
 
 
