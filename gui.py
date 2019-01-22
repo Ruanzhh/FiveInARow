@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from PyQt5.QtWidgets import *  # QApplication, QWidget, QPushButton
 from PyQt5.QtGui import *  # QPainter, QPixmap, QBrush
 from PyQt5.QtCore import *  # Qt, QPoint, QRect
@@ -84,6 +86,11 @@ class Board(QWidget):
                 p.drawLine(self.size // 2, self.size * i + self.size // 2,
                            self.size * self.n - self.size // 2, self.size * i + self.size // 2)
 
+        # 若当前轮到白棋，则计算出下一步的落子位置
+        if not self.finish and not self.black:
+            i, j = search(self.table, self.sequence)
+            self.point = (i, j)
+
         if self.point:
             color = Qt.black if self.black else Qt.white
             p.setPen(color)
@@ -120,11 +127,6 @@ class Board(QWidget):
                 self.finish = True
             self.point = None
 
-            if not result and not self.black:
-                i, j = search(self.table,  self.sequence)
-                self.point = (i, j)
-                self.update()
-
         if self.withdraw_point:
             p.setBrush(QBrush(BOARD_COLOR))
             for (i, j) in self.withdraw_point:
@@ -153,6 +155,10 @@ class Board(QWidget):
             self.withdraw_button.setStyleSheet("color:white; background-color:gray")
 
         painter.drawPixmap(0, 0, self.pix)
+
+        # 若之后轮到白棋，则直接update（而不是等待鼠标点击）
+        if not self.black:
+            self.update()
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:

@@ -1,100 +1,149 @@
+# -*- coding: utf-8 -*-
+
 import re
 from math import inf
+from copy import deepcopy
 from config import VACANT, BLACK, WHITE
+
+
+def search_space(table, sequence):
+    """
+    根据当前棋盘上棋子的落子顺序序列来计算下一步的搜索空间
+    若将所有空点作为搜索空间则必然是完备的，但是搜索空间太大会导致计算效率非常低
+    因此只有当某个空点在以其为中心的5*5的方格范围内有子的情况下，才将其加入搜索空间
+    因此只要对当前落子序列中的每个点，将以其为中心的5*5的方格范围内的空点加入到搜索空间中即可
+    但是加入的顺序也会有影响，因为此程序使用了alpha-beta剪枝，要想最大化剪枝的作用，应使先加入更可能是最优解的点
+    可以简单地认为，越靠近最近几步的落子点的空点，越有可能是最优解
+    因此在扩展搜索空间时，按sequence中顺序的相反顺序搜索
+    :param table: 当前棋盘
+    :param sequence: 当前棋盘上棋子的落子顺序序列
+    :return: 计算出的下一步的搜索空间
+    """
+    n = len(table)
+    space = []
+    for i0, j0 in sequence[-1::-1]:
+        for delta_i in [0, -1, 1, -2, 2]:
+            for delta_j in [0, -1, 1, -2, 2]:
+                i1, j1 = i0 + delta_i, j0 + delta_j
+                if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                    space.append((i1, j1))
+    return space
 
 
 def search(table, sequence):
     n = len(table)
     if not sequence:
         return n // 2, n // 2
-    left = min([j for i, j in sequence])
-    right = max([j for i, j in sequence])
-    up = min([i for i, j in sequence])
-    down = max([i for i, j in sequence])
-    left, right, up, down = max(0, left - 1), min(n - 1, right + 1), max(0, up - 1), min(n - 1, down + 1)
-    sub_table = [_[left: right + 1] for _ in table[up: down + 1]]
-    scores = {}
-    for i in range(down - up + 1):
-        for j in range(right - left + 1):
-            if sub_table[i][j] == VACANT:
-                sub_table[i][j] = WHITE
-                scores[i, j] = min_search(sub_table, 0)
-                sub_table[i][j] = VACANT
+    alpha, beta = -inf, inf
     max_ = -inf
-    i_max, j_max = 0, 0
-    for i, j in scores:
-        if scores[i, j] > max_:
-            max_ = scores[i, j]
-            i_max, j_max = i, j
-    return i_max + up, j_max + left
+    max_i, max_j = 0, 0
+    space = search_space(table, sequence)
+    for (i, j) in space:
+        if table[i][j] == VACANT:
+            table[i][j] = WHITE
+            new_space = deepcopy(space)
+            new_space.remove((i, j))
+            for delta_i in [0, -1, 1, -2, 2]:
+                for delta_j in [0, -1, 1, -2, 2]:
+                    i1, j1 = i + delta_i, j + delta_j
+                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                        new_space = [(i1, j1)] + new_space
+            score = min_search(table, alpha, beta, depth=1, space=new_space)
+            table[i][j] = VACANT
+            if score > max_:
+                max_ = score
+                max_i, max_j = i, j
+            if max_ >= beta:
+                return max_i, max_j
+            if max_ > alpha:
+                alpha = max_
+    return max_i, max_j
 
 
-def max_search(table, depth):
-    m, n = len(table), len(table[0])
-    scores = {}
-    for i in range(m):
-        for j in range(n):
-            if table[i][j] == VACANT:
-                table[i][j] = WHITE
-                if depth == 0:
-                    scores[i, j] = evaluate(table)
-                else:
-                    scores[i, j] = min_search(table, depth - 1)
-                table[i][j] = VACANT
+def max_search(table, alpha, beta, depth, space):
+    if depth == 0:
+        return evaluate(table)
+    n = len(table)
     max_ = -inf
-    for i, j in scores:
-        if scores[i, j] > max_:
-            max_ = scores[i, j]
+    for (i, j) in space:
+        if table[i][j] == VACANT:
+            table[i][j] = WHITE
+            new_space = deepcopy(space)
+            new_space.remove((i, j))
+            for delta_i in [0, -1, 1, -2, 2]:
+                for delta_j in [0, -1, 1, -2, 2]:
+                    i1, j1 = i + delta_i, j + delta_j
+                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                        new_space.append((i1, j1))
+            score = min_search(table, alpha, beta, depth=depth - 1, space=new_space)
+            table[i][j] = VACANT
+            if score > max_:
+                max_ = score
+            if max_ >= beta:
+                return max_
+            if max_ > alpha:
+                alpha = max_
     return max_
 
 
-def min_search(table, depth):
-    m, n = len(table), len(table[0])
-    scores = {}
-    for i in range(m):
-        for j in range(n):
-            if table[i][j] == VACANT:
-                table[i][j] = BLACK
-                if depth == 0:
-                    scores[i, j] = evaluate(table)
-                else:
-                    scores[i, j] = max_search(table, depth - 1)
-                table[i][j] = VACANT
+def min_search(table, alpha, beta, depth, space):
+    if depth == 0:
+        return evaluate(table)
+    n = len(table)
     min_ = inf
-    for i, j in scores:
-        if scores[i, j] < min_:
-            min_ = scores[i, j]
+    for (i, j) in space:
+        if table[i][j] == VACANT:
+            table[i][j] = BLACK
+            new_space = deepcopy(space)
+            new_space.remove((i, j))
+            for delta_i in [0, -1, 1, -2, 2]:
+                for delta_j in [0, -1, 1, -2, 2]:
+                    i1, j1 = i + delta_i, j + delta_j
+                    if table[i1][j1] == VACANT and (i1, j1) not in space and 0 <= i1 < n and 0 <= j1 < n:
+                        new_space.append((i1, j1))
+            score = max_search(table, alpha, beta, depth=depth - 1, space=new_space)
+            if score < min_:
+                min_ = score
+            table[i][j] = VACANT
+            if min_ <= alpha:
+                return min_
+            if min_ < beta:
+                beta = min_
     return min_
 
 
 patterns = {}
 for color in [BLACK, WHITE]:
-    for num in range(1, 6):
-        patterns[str(color) + '{' + str(num) + '}'] = num ** 2
-        patterns[str(VACANT) + str(color) + '{' + str(num) + '}'] = num ** 2
-        patterns[str(color) + '{' + str(num) + '}' + str(VACANT)] = num ** 2
-        if color == BLACK:
-            patterns[str(color) + '{' + str(num) + '}'] *= -1
+    opponent_color = BLACK if color == WHITE else WHITE
+    factor = 1 if color == WHITE else -1
+    for num in range(1, 5):
+        patterns[str(VACANT) + str(color) + '{' + str(num) + '}' + str(opponent_color)] = factor * num ** 2
+        patterns[str(opponent_color) + str(color) + '{' + str(num) + '}' + str(VACANT)] = factor * num ** 2
+        patterns[str(VACANT) + str(color) + '{' + str(num) + '}' + str(VACANT)] = factor * num ** 2
+    # patterns[str(VACANT) + str(color) + '{' + str(4) + '}' + str(opponent_color)] = factor * 16
+    # patterns[str(opponent_color) + '{' + str(4) + '}' + str(VACANT)] = factor * 16
+    patterns[str(VACANT) + str(color) + '{' + str(4) + '}' + str(VACANT)] = factor * 10000
+    patterns[str(color) + '{' + str(5) + '}'] = factor * 10000
 
 
 def evaluate(table):
-    m, n = len(table), len(table[0])
+    n = len(table)
     score = 0
     strings = []
-    for i in range(m):
+    for i in range(n):
         strings.append(''.join([str(_) for _ in table[i]]))
     for j in range(n):
-        strings.append(''.join([str(table[i][j]) for i in range(m)]))
-    for k in range(m + n - 1):
-        if k < m:
-            strings.append(''.join([str(table[k - i][i]) for i in range(min(k + 1, n))]))
+        strings.append(''.join([str(table[i][j]) for i in range(n)]))
+    for k in range(2 * n - 1):
+        if k < n:
+            strings.append(''.join([str(table[k - i][i]) for i in range(k + 1)]))
         else:
-            strings.append(''.join([str(table[m - 1 - i][k - m + 1 + i]) for i in range(m + n - max(k + 1, n))]))
-    for k in range(m + n - 1):
-        if k < m:
-            strings.append(''.join([str(table[m - 1 - k + i][i]) for i in range(min(k + 1, n))]))
+            strings.append(''.join([str(table[n - 1 - i][k - n + 1 + i]) for i in range(2 * n - k - 1)]))
+    for k in range(2 * n - 1):
+        if k < n:
+            strings.append(''.join([str(table[n - 1 - k + i][i]) for i in range(k + 1)]))
         else:
-            strings.append(''.join([str(table[i][k - m + 1 + i]) for i in range(m + n - max(k + 1, n))]))
+            strings.append(''.join([str(table[i][k - n + 1 + i]) for i in range(2 * n - k - 1)]))
     for string in strings:
         for pattern in patterns:
             if re.search(pattern, string):
