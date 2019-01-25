@@ -26,6 +26,8 @@ def search_space(table, sequence):
             for delta_j in [0, -1, 1, -2, 2]:
                 i1, j1 = i0 + delta_i, j0 + delta_j
                 if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
+                    if i1 == 0 and j1 == 0:
+                        print(i0, j0)
                     space.append((i1, j1))
     return space
 
@@ -38,15 +40,26 @@ def search(table, sequence):
     max_ = -inf
     max_i, max_j = 0, 0
     space = search_space(table, sequence)
+    # for i in range(5):
+    #     for j in range(5):
+    #         print(table[i][j], end=' ')
+    #     print()
+    # print(space)
     for (i, j) in space:
         if table[i][j] == VACANT:
             table[i][j] = WHITE
+            result = judge(table)
+            if result and result[-1] == WHITE:
+                table[i][j] = VACANT
+                return i, j
             new_space = deepcopy(space)
             new_space.remove((i, j))
-            for delta_i in [0, -1, 1, -2, 2]:
-                for delta_j in [0, -1, 1, -2, 2]:
+            for delta_i in [-2, 2, -1, 1, 0]:
+                for delta_j in [-2, 2, -1, 1, 0]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT:
+                        if (i1, j1) in new_space:
+                            new_space.remove((i1, j1))
                         new_space = [(i1, j1)] + new_space
             score = min_search(table, alpha, beta, depth=1, space=new_space)
             table[i][j] = VACANT
@@ -61,6 +74,13 @@ def search(table, sequence):
 
 
 def max_search(table, alpha, beta, depth, space):
+    # for i in range(5):
+    #     print('    ' * (3 - depth), end='')
+    #     for j in range(5):
+    #         print(table[i][j], end=' ')
+    #     print()
+    # print('    ' * (3 - depth), end='')
+    # print(space)
     if depth == 0:
         return evaluate(table)
     n = len(table)
@@ -68,13 +88,25 @@ def max_search(table, alpha, beta, depth, space):
     for (i, j) in space:
         if table[i][j] == VACANT:
             table[i][j] = WHITE
+            result = judge(table)
+            if result and result[-1] == WHITE:
+                table[i][j] = VACANT
+                return 10000000
+                # 不可以return inf
+                # 因为inf > inf为False，因此若return inf则在上一层函数中以下代码运行可能出现问题
+                # if score > max_:
+                #     max_ = score
+                #     max_i, max_j = i, j
+                # 勿取消上面三行代码的注释
             new_space = deepcopy(space)
             new_space.remove((i, j))
-            for delta_i in [0, -1, 1, -2, 2]:
-                for delta_j in [0, -1, 1, -2, 2]:
+            for delta_i in [-2, 2, -1, 1, 0]:
+                for delta_j in [-2, 2, -1, 1, 0]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
-                        new_space.append((i1, j1))
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT:
+                        if (i1, j1) in new_space:
+                            new_space.remove((i1, j1))
+                        new_space = [(i1, j1)] + new_space
             score = min_search(table, alpha, beta, depth=depth - 1, space=new_space)
             table[i][j] = VACANT
             if score > max_:
@@ -87,6 +119,14 @@ def max_search(table, alpha, beta, depth, space):
 
 
 def min_search(table, alpha, beta, depth, space):
+    # for i in range(5):
+    #     print('    ' * (3 - depth), end='')
+    #     for j in range(5):
+    #         print(table[i][j], end=' ')
+    #     print()
+    # print()
+    # print('    ' * (3 - depth), end='')
+    # print(space)
     if depth == 0:
         return evaluate(table)
     n = len(table)
@@ -94,13 +134,19 @@ def min_search(table, alpha, beta, depth, space):
     for (i, j) in space:
         if table[i][j] == VACANT:
             table[i][j] = BLACK
+            result = judge(table)
+            if result and result[-1] == BLACK:
+                table[i][j] = VACANT
+                return -10000000
             new_space = deepcopy(space)
             new_space.remove((i, j))
-            for delta_i in [0, -1, 1, -2, 2]:
-                for delta_j in [0, -1, 1, -2, 2]:
+            for delta_i in [-2, 2, -1, 1, 0]:
+                for delta_j in [-2, 2, -1, 1, 0]:
                     i1, j1 = i + delta_i, j + delta_j
-                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT and (i1, j1) not in space:
-                        new_space.append((i1, j1))
+                    if 0 <= i1 < n and 0 <= j1 < n and table[i1][j1] == VACANT:
+                        if (i1, j1) in new_space:
+                            new_space.remove((i1, j1))
+                        new_space = [(i1, j1)] + new_space
             score = max_search(table, alpha, beta, depth=depth - 1, space=new_space)
             if score < min_:
                 min_ = score
@@ -116,16 +162,24 @@ patterns = {}
 for color in [BLACK, WHITE]:
     opponent_color = BLACK if color == WHITE else WHITE
     factor = 1 if color == WHITE else -1
-    for num in range(1, 5):
-        patterns[str(VACANT) + str(color) * num + str(opponent_color)] = factor * num ** 2
-        patterns[str(opponent_color) + str(color) * num + str(VACANT)] = factor * num ** 2
-        patterns[str(VACANT) + str(color) * num + str(VACANT)] = factor * num ** 2
-    # patterns[str(VACANT) + str(color) * 4 + str(opponent_color)] = factor * 16
-    # patterns[str(opponent_color) * 4 + str(VACANT)] = factor * 16
+
+    patterns[str(VACANT) + str(color) * 2 + str(opponent_color)] = factor
+    patterns[str(opponent_color) + str(color) * 2 + str(VACANT)] = factor
+
+    patterns[str(VACANT) + str(color) * 2 + str(VACANT)] = factor * 5
+    patterns[str(VACANT) + str(color) * 3 + str(opponent_color)] = factor * 10
+    patterns[str(opponent_color) + str(color) * 3 + str(VACANT)] = factor * 10
+
+    patterns[str(VACANT) + str(color) * 3 + str(VACANT)] = factor * 100
+    patterns[str(VACANT) + str(color) * 4 + str(opponent_color)] = factor * 100
+    patterns[str(opponent_color) + str(color) * 4 + str(VACANT)] = factor * 100
+    patterns[str(VACANT) + str(color) * 2 + str(VACANT) + str(color) + str(VACANT)] = factor * 100
+    patterns[str(VACANT) + str(color) + str(VACANT) + str(color) * 2 + str(VACANT)] = factor * 100
+
     patterns[str(VACANT) + str(color) * 4 + str(VACANT)] = factor * 10000
     patterns[str(color) * 5] = factor * 100000
     patterns[str(VACANT) + str(color) * 5 + str(VACANT)] = factor * 100000
-    # 此行代码只是为了防止人类玩家快要连到5个时电脑懒得管的尴尬局面（可删，不影响胜负）
+    # 此行代码只是为了防止人类玩家即将连到5个时AI不去拦截（因为拦截也没用）的尴尬局面（可删，不影响胜负）
 
 
 def evaluate(table):

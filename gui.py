@@ -42,6 +42,9 @@ class Board(QWidget):
         self.finish = False
         self.sequence = []
         self.table = [[VACANT for j in range(self.n)] for i in range(self.n)]
+        for i, j in self.sequence:
+            self.table[i][j] = BLACK if self.black else WHITE
+            self.black = not self.black
         self.withdraw_point = None
         self.winner = VACANT
 
@@ -85,6 +88,23 @@ class Board(QWidget):
                            self.size * i + self.size // 2, self.size * self.n - self.size // 2)
                 p.drawLine(self.size // 2, self.size * i + self.size // 2,
                            self.size * self.n - self.size // 2, self.size * i + self.size // 2)
+
+            for i, j in self.sequence:
+                if self.table[i][j] == VACANT:
+                    continue
+                color = Qt.black if self.table[i][j] == BLACK else Qt.white
+                p.setPen(color)
+                p.setBrush(QBrush(color))
+                self.count += 1
+                p.drawEllipse(j * self.size + (self.size - self.dia) // 2, i * self.size + (self.size - self.dia) // 2,
+                              self.dia, self.dia)
+
+                if self.show_step:
+                    color = Qt.white if self.table[i][j] == BLACK else Qt.black
+                    p.setPen(color)
+                    p.setFont(QFont("Bold", 16))
+                    p.drawText(j * self.size + (self.size - self.dia) // 2, i * self.size + (self.size - self.dia) // 2,
+                               self.dia, self.dia, Qt.AlignCenter, str(self.count))
 
         # 若当前轮到白棋，则计算出下一步的落子位置
         if not self.finish and not self.black:
